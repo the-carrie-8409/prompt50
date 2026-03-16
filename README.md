@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>뷰티 1인샵 수강 클래스 프롬프트 허브</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        /* <!-- Chosen Palette: Warm Beauty Neutral (Ivory, Beige, Taupe, Dark Espresso, Rose Beige, Sand) -->
+        <!-- Application Structure Plan: 
+             A "Dashboard/Hub" layout designed for highly actionable exploration. 
+             - Section 1: Overview & Analytics (Provides context on the tool's composition using a Chart, satisfying the visualization requirement).
+             - Section 2: Interactive Prompt Explorer (The core tool). It uses category filters (Tabs) and a Grid layout of "Prompt Cards". 
+             - Why this structure? The source report is now a list of 50 distinct tools (prompts) across 7 categories. A dashboard categorizes them, allows filtering by immediate need (e.g., "I need marketing today", "I need to analyze an image"), and visually highlights the variables `[ ]` that the user must change, making it a functional application rather than a static reading experience.
+        -->
+        <!-- Visualization & Content Choices: 
+             - Goal: Inform on prompt distribution across the expanded 7 categories.
+             - Viz: Donut Chart (Chart.js/Canvas).
+             - Interaction: Hover for tooltips, integrated into the overview section.
+             - Justification: Shows the balanced approach of the 50 prompts at a glance, highlighting the newly added image and global marketing sections.
+             - Content: The 50 prompts are presented as interactive cards with "Copy" functionality and regex-based highlighting of customizable areas.
+        -->
+        <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+        */
+        
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            background-color: #FDFBF7;
+            color: #4A4036;
+        }
+
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 320px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 250px;
+            max-height: 250px;
+        }
+
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 300px;
+                max-height: 300px;
+                max-width: 400px;
+            }
+        }
+
+        .prompt-card {
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .prompt-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 25px rgba(140, 122, 107, 0.15);
+        }
+
+        .highlight-variable {
+            background-color: #FCEFD4;
+            color: #B47124;
+            font-weight: 700;
+            padding: 0.1rem 0.3rem;
+            border-radius: 0.25rem;
+            display: inline-block;
+        }
+
+        .custom-scroll::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scroll::-webkit-scrollbar-track {
+            background: #F3EFEA;
+            border-radius: 4px;
+        }
+        .custom-scroll::-webkit-scrollbar-thumb {
+            background: #D4C3B3;
+            border-radius: 4px;
+        }
+        
+        @keyframes slideUpFade {
+            0% { opacity: 0; transform: translate(-50%, 20px); }
+            100% { opacity: 1; transform: translate(-50%, 0); }
+        }
+        .toast-enter {
+            animation: slideUpFade 0.3s ease forwards;
+        }
+    </style>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        beauty: {
+                            bg: '#FDFBF7',
+                            card: '#FFFFFF',
+                            border: '#EAE1D8',
+                            primary: '#C19A6B',
+                            primaryHover: '#A88458',
+                            textDark: '#4A4036',
+                            textLight: '#8C7A6B',
+                            highlight: '#FCEFD4'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="antialiased min-h-screen flex flex-col items-center p-4 md:p-8">
+
+    <header class="w-full max-w-6xl mb-10 text-center">
+        <div class="inline-block p-3 rounded-full bg-beauty-highlight text-2xl mb-4">✨</div>
+        <h1 class="text-3xl md:text-5xl font-bold text-beauty-textDark mb-4 tracking-tight">뷰티 클래스 기획 & 운영 자동화 허브</h1>
+        <p class="text-lg text-beauty-textLight max-w-2xl mx-auto">
+            10년 차 원장님의 머릿속 노하우를 완벽한 커리큘럼으로 뽑아내고, 이미지 마케팅과 글로벌 타겟팅까지 해결해 주는 50가지 마법의 프롬프트.
+            원하는 카테고리를 선택하고, 하이라이트 된 키워드만 수정하여 AI에게 전달해 보세요.
+        </p>
+    </header>
+
+    <section class="w-full max-w-6xl bg-white rounded-2xl shadow-sm border border-beauty-border p-6 md:p-8 mb-10">
+        <div class="mb-6">
+            <h2 class="text-2xl font-bold text-beauty-textDark border-b-2 border-beauty-primary pb-2 inline-block">프롬프트 구성 시스템 분석 (총 50개)</h2>
+            <p class="mt-3 text-beauty-textLight">
+                본 어플리케이션은 원장님의 성공적인 클래스 런칭 및 글로벌 샵 운영을 위해 7가지 핵심 단계로 프롬프트를 체계화했습니다. 
+                아래 차트는 제공되는 50개 프롬프트의 기능적 분포를 시각화하여 보여줍니다.
+            </p>
+        </div>
+        
+        <div class="flex flex-col md:flex-row items-center justify-between gap-8 bg-beauty-bg p-6 rounded-xl border border-beauty-border/50">
+            <div class="w-full md:w-1/2">
+                <div class="chart-container">
+                    <canvas id="distributionChart"></canvas>
+                </div>
+            </div>
+            <div class="w-full md:w-1/2 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div class="flex items-start gap-2">
+                    <div class="text-xl mt-0.5">🎯</div>
+                    <div>
+                        <h4 class="font-bold text-beauty-textDark text-sm">일반인 대상 기획 (5)</h4>
+                    </div>
+                </div>
+                <div class="flex items-start gap-2">
+                    <div class="text-xl mt-0.5">🚀</div>
+                    <div>
+                        <h4 class="font-bold text-beauty-textDark text-sm">창업반 기획 (5)</h4>
+                    </div>
+                </div>
+                <div class="flex items-start gap-2">
+                    <div class="text-xl mt-0.5">🗣️</div>
+                    <div>
+                        <h4 class="font-bold text-beauty-textDark text-sm">티칭 스크립트 (5)</h4>
+                    </div>
+                </div>
+                <div class="flex items-start gap-2">
+                    <div class="text-xl mt-0.5">💰</div>
+                    <div>
+                        <h4 class="font-bold text-beauty-textDark text-sm">마케팅 및 세일즈 (5)</h4>
+                    </div>
+                </div>
+                <div class="flex items-start gap-2">
+                    <div class="text-xl mt-0.5">📸</div>
+                    <div>
+                        <h4 class="font-bold text-beauty-textDark text-sm">AI 이미지 분석 (10)</h4>
+                        <p class="text-xs text-beauty-textLight">나노바나나 등 비전 모델 활용 피드백</p>
+                    </div>
+                </div>
+                <div class="flex items-start gap-2">
+                    <div class="text-xl mt-0.5">🎨</div>
+                    <div>
+                        <h4 class="font-bold text-beauty-textDark text-sm">뷰티 이미지 생성 (10)</h4>
+                        <p class="text-xs text-beauty-textLight">홍보 및 레퍼런스용 에셋 생성</p>
+                    </div>
+                </div>
+                <div class="flex items-start gap-2 sm:col-span-2">
+                    <div class="text-xl mt-0.5">🌍</div>
+                    <div>
+                        <h4 class="font-bold text-beauty-textDark text-sm">외국인 고객 유치 (10)</h4>
+                        <p class="text-xs text-beauty-textLight">다국어(영/일/중) 번역 및 글로벌 마케팅</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="w-full max-w-6xl">
+        <div class="mb-6">
+            <h2 class="text-2xl font-bold text-beauty-textDark border-b-2 border-beauty-primary pb-2 inline-block">인터랙티브 프롬프트 탐색기</h2>
+            <p class="mt-3 text-beauty-textLight">
+                아래 탭을 클릭하여 원하는 목적의 프롬프트를 탐색하세요. 각 카드 안의 <span class="highlight-variable text-sm">[강조된 괄호]</span> 부분은 원장님의 상황에 맞게 수정한 뒤 AI에게 입력하세요.
+            </p>
+        </div>
+
+        <div class="flex flex-wrap gap-2 mb-8 justify-center md:justify-start" id="filter-container">
+            <button data-filter="all" class="filter-btn px-4 py-2 text-sm rounded-full font-medium transition-colors bg-beauty-primary text-white shadow-md">전체 보기</button>
+            <button data-filter="part1" class="filter-btn px-4 py-2 text-sm rounded-full font-medium transition-colors bg-white text-beauty-textDark border border-beauty-border hover:bg-beauty-bg">🎯 일반 클래스</button>
+            <button data-filter="part2" class="filter-btn px-4 py-2 text-sm rounded-full font-medium transition-colors bg-white text-beauty-textDark border border-beauty-border hover:bg-beauty-bg">🚀 전문가/창업반</button>
+            <button data-filter="part3" class="filter-btn px-4 py-2 text-sm rounded-full font-medium transition-colors bg-white text-beauty-textDark border border-beauty-border hover:bg-beauty-bg">🗣️ 티칭 대본</button>
+            <button data-filter="part4" class="filter-btn px-4 py-2 text-sm rounded-full font-medium transition-colors bg-white text-beauty-textDark border border-beauty-border hover:bg-beauty-bg">💰 세일즈</button>
+            <button data-filter="part5" class="filter-btn px-4 py-2 text-sm rounded-full font-medium transition-colors bg-white text-beauty-textDark border border-beauty-border hover:bg-beauty-bg">📸 AI 이미지 분석</button>
+            <button data-filter="part6" class="filter-btn px-4 py-2 text-sm rounded-full font-medium transition-colors bg-white text-beauty-textDark border border-beauty-border hover:bg-beauty-bg">🎨 이미지 생성</button>
+            <button data-filter="part7" class="filter-btn px-4 py-2 text-sm rounded-full font-medium transition-colors bg-white text-beauty-textDark border border-beauty-border hover:bg-beauty-bg">🌍 글로벌 다국어</button>
+        </div>
+
+        <div id="prompts-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <!-- Cards injected by JS -->
+        </div>
+    </section>
+
+    <div id="toast" class="fixed bottom-10 left-1/2 transform -translate-x-1/2 bg-beauty-textDark text-white px-6 py-3 rounded-full shadow-2xl font-medium flex items-center gap-2 hidden z-50">
+        <span>✅</span> 프롬프트가 클립보드에 복사되었습니다!
+    </div>
+
+    <script>
+        const promptsData = [
+            // PART 1 (일반인 대상 기획)
+            { id: 1, category: 'part1', icon: '🎯', title: '원데이 클래스 초안 잡기', text: "나는 10년 차 [속눈썹연장/반영구/속눈썹펌/메이크업/네일] 샵 원장이야. 일반인을 대상으로 [나에게 맞는 눈썹 찾기 / 내 손에 어울리는 네일 쉐입 / 뷰러 없이 아찔한 속눈썹]을 주제로 2시간짜리 원데이 클래스를 열려고 해. 초보자도 지루하지 않게 들을 수 있는 2시간 타임테이블(10분 단위)과 매력적인 수업 제목 3가지를 추천해 줘." },
+            { id: 2, category: 'part1', icon: '🎯', title: '고객 맞춤형 4주 정규반 기획', text: "완전 초보자를 타겟으로, 4주(주 1회, 90분) [속눈썹/네일/메이크업/반영구] 정규반 커리큘럼을 짜줘. 1주 차는 [기초 이론/도구 설명], 2주 차는 [기본기 실습], 3주 차는 [응용 실습], 4주 차는 [실전 마무리]로 구성해 줘. 각 주차별로 수강생이 얻어갈 수 있는 '명확한 결과물'을 한 줄씩 적어줘." },
+            { id: 3, category: 'part1', icon: '🎯', title: '제품 진단/컨설팅 클래스 기획', text: "고객이 본인 [화장품 / 속눈썹 영양제 / 네일 홈케어 제품]을 가져오면 진단해 주는 '1:1 진단 원데이 클래스'를 기획 중이야. 고객의 제품을 [버릴 것, 살릴 것, 새로 사야 할 것]으로 분류해 줄 건데, 이 수업을 진행할 때 고객에게 물어봐야 할 필수 사전 질문지 5개와 수업 진행 순서를 정리해 줘." },
+            { id: 4, category: 'part1', icon: '🎯', title: '주차별 홈워크(과제) 시스템', text: "내가 운영하는 [4주 뷰티 정규 클래스] 수강생들이 집에 가서도 연습할 수 있게 '주차별 과제 가이드'를 만들고 싶어. 수강생이 스스로 거울(또는 손)을 보며 체크할 수 있는 [베이스 메이크업 / 고무판 결 연습 / 인조모 핀셋 연습 / 큐티클 케어] 체크리스트 5가지를 초보자 용어로 만들어줘." },
+            { id: 5, category: 'part1', icon: '🎯', title: '특정 고민 해결형 단기 특강', text: "[짝짝이 눈썹 교정 / 무쌍 속눈썹 펌 / 물어뜯는 손톱 교정 / 무너지지 않는 피부 화장]에만 집중하는 90분짜리 특강을 열려고 해. 이 특강의 상세 페이지에 들어갈 '이런 분들께 추천합니다' 5가지 항목과, 수업에서 알려줄 핵심 꿀팁 목차를 기획해 줘." },
+            
+            // PART 2 (전문가/창업반 기획)
+            { id: 6, category: 'part2', icon: '🚀', title: '8주/10주 창업반 마스터 플랜', text: "나는 10년 실무 경력을 가진 [속눈썹연장/반영구/메이크업/네일] 원장이야. 왕초보를 데려다 내 샵을 차릴 수 있게 만드는 [10주 차 창업 마스터반] 커리큘럼을 짜줘. 기술 교육뿐만 아니라, 고객 응대(CS), 사진 촬영법, 인스타그램 마케팅, 상권 분석까지 포함해서 주차별 주제를 표로 정리해 줘." },
+            { id: 7, category: 'part2', icon: '🚀', title: '창업반 하루 수업 타임테이블', text: "창업반 [3주 차: 엠보 눈썹 결공식 / 속눈썹 핀셋 분리 / 큐티클 케어 등 핵심 기술] 수업을 하루 4시간 동안 진행할 예정이야. 이 4시간을 [이론 - 강사 데모 시연 - 수강생 모형/마네킹 연습 - 수강생 상호 모델 실습 - 피드백] 순서로 가장 효율적으로 배분한 타임테이블을 짜줘." },
+            { id: 8, category: 'part2', icon: '🚀', title: '수강생 평가 및 졸업 테스트', text: "창업반 마지막 주차에 수강생의 실력을 최종 평가하는 '졸업 테스트'를 진행할 거야. 실제 모델에게 시술/메이크업을 진행할 때, 내가 강사로서 평가해야 할 체크리스트 항목을 [위생, 시술/작업 속도, 디자인 정확도, 고객 응대 화법] 4가지 카테고리로 나눠서 15개의 채점 기준을 만들어줘." },
+            { id: 9, category: 'part2', icon: '🚀', title: '실전 컴플레인 대처 CS 모듈', text: "창업반 수강생들이 샵을 오픈했을 때 가장 두려워하는 게 컴플레인이야. [시술 후 짝짝이라고 할 때 / 유지력이 짧다며 환불을 요구할 때 / 젤 네일이 하루 만에 떨어졌을 때] 등 실전에서 발생할 수 있는 최악의 상황 5가지를 제시하고, 각각 어떻게 응대해야 하는지 10년 차 원장의 노련한 대본을 작성해 줘." },
+            { id: 10, category: 'part2', icon: '🚀', title: '창업반 메뉴판 및 단가 설정', text: "창업반 8주 차 수업 주제는 '내 [뷰티 시술] 샵 메뉴판 만들고 단가 정하기'야. 수강생들이 주변 상권 시세를 분석하고 자신만의 시술 단가를 정할 수 있도록, 수업 시간에 함께 작성해 볼 수 있는 '단가 측정 워크시트(빈칸 채우기 형태)' 양식을 만들어줘." },
+
+            // PART 3 (티칭 스크립트)
+            { id: 11, category: 'part3', icon: '🗣️', title: '전문 용어를 초보자 용어로 번역', text: "내가 수업할 때 무의식적으로 [텐션 주세요, 텍스처를 살리세요, 글루 양 조절하세요, 오버레이 하세요] 같은 전문/추상적인 용어를 많이 써. 이 4가지 단어를 시술을 한 번도 안 해본 왕초보가 직관적으로 이해할 수 있게 구체적인 행동 묘사나 비유로 찰떡같이 바꿔줘." },
+            { id: 12, category: 'part3', icon: '🗣️', title: '기술 동작 잘게 쪼개기 (매뉴얼)', text: "수강생에게 [가짜 속눈썹 가닥으로 붙이기 / 니들 깊이 조절하기 / 큐티클 니퍼 각도 잡기] 기술을 가르쳐야 해. 내가 직접 보여주면서 설명할 수 있도록, 이 행동을 아주 미세하게 10단계로 쪼개서 설명 대본을 써줘. 손가락 위치, 시선 처리까지 디테일하게 적어줘." },
+            { id: 13, category: 'part3', icon: '🗣️', title: '실수 교정 샌드위치 화법', text: "수강생이 실습 중에 [파운데이션을 너무 두껍게 발랐을 때 / 글루를 너무 많이 묻혔을 때 / 큐티클에서 피를 냈을 때] 강사인 내가 기분 나쁘지 않게 교정해 주는 대본이 필요해. '칭찬하기 -> 쉽게 수정하는 법 알려주기 -> 다시 칭찬하기'의 샌드위치 화법 구조로 대본을 2개 짜줘." },
+            { id: 14, category: 'part3', icon: '🗣️', title: '데모 시연 전 주의집중 스피치', text: "내가 수강생 앞에서 반쪽 데모(시범)를 보여주기 직전에 할 스피치야. 수강생이 그냥 멍하니 구경만 하는 게 아니라, 내 손 각도나 [브러시/핀셋/니퍼/머신] 방향을 집중해서 관찰하도록 유도하는 오프닝 멘트를 작성해 줘." },
+            { id: 15, category: 'part3', icon: '🗣️', title: '자체 제작 교재(PDF) 목차 뽑기', text: "내 샵의 노하우를 담아 [실전 속눈썹 펌 / 웨딩 메이크업 / 무통 아이라인 / 문제성 발톱 교정] 수강생들에게 나눠줄 20페이지짜리 미니 교재(PDF)를 만들려고 해. 이 교재에 꼭 들어가야 할 필수 목차 10가지를 순서대로 기획해 줘." },
+
+            // PART 4 (세일즈 마케팅)
+            { id: 16, category: 'part4', icon: '💰', title: '수강 등록 전환율 높이는 대본', text: "고객이 카톡으로 '[속눈썹/반영구/네일/메이크업] 원데이 클래스(수강) 얼마예요?'라고 가격만 물어봤을 때, 단순히 가격만 답하지 않고 이 고객의 니즈를 파악해서 4주 정규반이나 창업반으로 업셀링을 유도할 수 있는 친절하고 전문적인 카톡 상담 대본을 써줘." },
+            { id: 17, category: 'part4', icon: '💰', title: '창업반 모집 인스타그램 피드', text: "인스타그램에 [10주 차 실전 창업반 (속눈썹/반영구/네일/메이크업)] 모집 글을 올릴 거야. '단순히 기술만 가르치는 게 아니라 10년 차 원장의 마케팅과 단골 만드는 비법까지 다 퍼준다'는 걸 강조하는 매력적인 피드 본문을 써줘. 훅(Hook)이 되는 첫 줄이 강력해야 해." },
+            { id: 18, category: 'part4', icon: '💰', title: '상세페이지용 FAQ 리스트', text: "내 블로그에 뷰티 수강 모집 공지를 올릴 건데, 맨 밑에 넣을 '자주 묻는 질문(FAQ)' 7개와 그에 대한 설득력 있는 답변을 작성해 줘. 예비 수강생들은 주로 [똥손인데 가능할까요?, 모델은 직접 구해야 하나요?, 재료비는 별도인가요?] 같은 걸 궁금해해." },
+            { id: 19, category: 'part4', icon: '💰', title: '원데이 수강생을 정규반으로 연결', text: "원데이 클래스가 끝난 직후, 수강생에게 만족도를 물어보면서 자연스럽게 심화반(정규반/창업반) 등록을 권유하는 마무리 스피치 멘트를 써줘. 전혀 부담스럽지 않게 '원하시면 더 깊게 배울 수 있다'는 뉘앙스로 작성해 줘." },
+            { id: 20, category: 'part4', icon: '💰', title: '타 샵 수강과의 차별점 도출', text: "주변에 미용 수강을 하는 샵들이 정말 많아. 나는 10년 경력이고, 특히 [압도적인 유지력 / 고객 얼굴형(손톱 바디) 맞춤 디자인 / 손상 없는 시술]에 엄청난 강점이 있어. 내 수강 클래스가 다른 공장형 학원이나 타 샵들과 다르다는 점을 어필할 수 있는 '나만의 3가지 차별화 포인트(캐치프레이즈)'를 기획해 줘." },
+
+            // PART 5 (AI 이미지 분석)
+            { id: 21, category: 'part5', icon: '📸', title: '고객 맞춤형 디자인 가이드 분석', text: "[이미지 첨부 필수] 고객의 정면(또는 손) 사진을 첨부할게. 이 고객의 특징(얼굴형, 눈매, 손톱 모양 등)을 분석하고, 단점을 보완할 수 있는 가장 잘 어울리는 [눈썹 디자인 / 속눈썹 컬&길이 / 네일 쉐입 / 블러셔 위치]를 시각적으로 가이드해 줘." },
+            { id: 22, category: 'part5', icon: '📸', title: '레퍼런스 컬러 팔레트 추출', text: "[이미지 첨부 필수] 첨부한 [메이크업 룩 / 아트 네일 / 브로우 컬러] 사진에서 사용된 주요 컬러 팔레트(베이스, 포인트 컬러)의 헥스(HEX) 코드와 시중에서 비슷한 느낌을 내는 뷰티 제품군/컬러톤을 추천해 줘." },
+            { id: 23, category: 'part5', icon: '📸', title: '수강생 시술/작업 사진 피드백', text: "[이미지 첨부 필수] 수강생이 제출한 [비포/애프터] 사진이야. 10년 차 원장의 시선으로 볼 때, 애프터 사진에서 [피부 표현 / 눈썹 대칭 / 속눈썹 결 / 큐티클 라인]이 아쉬운 부분 3가지를 찾아서 수강생에게 전달할 피드백 멘트를 작성해 줘." },
+            { id: 24, category: 'part5', icon: '📸', title: '셀럽/트렌드 포인트 추출', text: "[이미지 첨부 필수] 첨부한 아이돌 [장원영 메이크업 / 카리나 속눈썹 / 트렌디한 네일 아트] 사진을 보고, 일반인이 데일리로 따라 할 수 있도록 가장 중요한 포인트 2가지만 살려서 텍스트 튜토리얼로 변환해 줘." },
+            { id: 25, category: 'part5', icon: '📸', title: '제품 텍스처 분석 및 도구 추천', text: "[이미지 첨부 필수] 이 [화장품 제형 / 펌제 / 네일 젤 / 색소] 발색(질감) 사진을 보고, 어떤 [도구 / 핀셋 / 브러시 / 니퍼]를 사용해야 가장 예쁘게 밀착/시술될지 도구 추천과 사용법을 알려줘." },
+            { id: 26, category: 'part5', icon: '📸', title: '대칭 및 디자인 픽셀 단위 체크', text: "[이미지 첨부 필수] 고객의 [눈썹 / 속눈썹 / 손톱 바디] 비포 사진이야. 양쪽의 [높낮이 / 길이 / 대칭]이 얼마나 다른지 분석하고, 완벽한 대칭과 밸런스를 맞추기 위해 어디를 보완해야 할지 가이드라인을 제시해 줘." },
+            { id: 27, category: 'part5', icon: '📸', title: '최신 트렌드 연령별 변형 가이드', text: "[이미지 첨부 필수] 요즘 유행하는 [토끼혀 립 / 가닥 속눈썹 / 시럽 네일] 트렌드 사진이야. 이 룩을 40~50대 중년 고객에게 적용할 때, 촌스럽지 않게 변형해야 할 포인트(채도 조절, 과도한 컬링 완화 등)를 분석해 줘." },
+            { id: 28, category: 'part5', icon: '📸', title: '디자인 매핑 도안 도출', text: "[이미지 첨부 필수] 첨부한 고객 [눈매 / 맨눈썹 / 손] 사진을 보고, 단점을 커버하여 가장 돋보일 수 있는 [속눈썹 연장 매핑 도안 / 반영구 눈썹 결 디자인 / 네일 아트 스톤 배치]를 구체적으로 추천해 줘." },
+            { id: 29, category: 'part5', icon: '📸', title: '시술 후 인증샷 조명 컨설팅', text: "[이미지 첨부 필수] 내가 샵에서 찍은 시술 후 고객 사진이야. 조명이 너무 노랗거나 그림자가 졌는지 분석하고, 뷰티 포트폴리오용([눈썹/속눈썹/네일/메이크업] 인증샷)으로 완벽한 사진을 찍기 위한 조명 세팅(링라이트 위치, 조명 온도 등)을 조언해 줘." },
+            { id: 30, category: 'part5', icon: '📸', title: '컬러/톤 매칭 정확도 확인', text: "[이미지 첨부 필수] 고객의 [민낯/맨 손톱] 사진과 평소 쓰는 [파운데이션/네일 컬러/색소] 발색 사진이야. 이 컬러가 고객의 본래 톤과 자연스럽게 이어지는지, 아니면 톤업/톤다운(노란기/붉은기 조절)이 더 필요한지 분석해 줘." },
+
+            // PART 6 (이미지 생성)
+            { id: 31, category: 'part6', icon: '🎨', title: '인스타 감성 샵 무드보드', text: "내 뷰티 샵의 브랜드 컬러는 [차분한 베이지와 피치 코랄]이야. 이 컬러를 바탕으로 인스타그램 피드에 올릴 [속눈썹/반영구/네일/메이크업] 샵 감성 사진을 생성해 줘. 사람 얼굴은 제외하고 오브제(고급 핀셋, 젤 네일 병, 대리석 트레이 등) 위주로 구성해 줘." },
+            { id: 32, category: 'part6', icon: '🎨', title: '데일리 꾸안꾸 시술 레퍼런스', text: "[20대 대학생 / 30대 직장인]을 위한 [꾸안꾸 메이크업 / 자연스러운 C컬 연장 / 깔끔한 원컬러 네일] 룩을 보여주는 정면 한국 여성(또는 손)의 초상화/사진을 생성해 줘. 텍스처가 살아있게 사실적으로 묘사해 줘." },
+            { id: 33, category: 'part6', icon: '🎨', title: '시술 홍보용 매크로 클로즈업', text: "시술 홍보물 배경으로 쓸 이미지야. 부위만 아주 가깝게 클로즈업된 사진으로, [C컬 속눈썹 / 결이 완벽한 자연눈썹 / 큐티클이 깔끔한 네일아트]가 매우 선명하고 고급스럽게 표현된 고화질 매크로 이미지를 만들어 줘." },
+            { id: 34, category: 'part6', icon: '🎨', title: '고급스러운 제품 플랫레이(탑뷰)', text: "[속눈썹 영양제/최고급 핀셋 세트 / 다양한 컬러의 젤 네일 / 메이크업 브러시]가 깨끗한 대리석 테이블 위에 미니멀하게 놓여있는 탑뷰(위에서 아래로 찍은) 플랫레이 이미지를 생성해 줘. 빛은 오후의 부드러운 자연광 느낌으로 설정해 줘." },
+            { id: 35, category: 'part6', icon: '🎨', title: '본식 웨딩/행사 뷰티 시안', text: "본식 웨딩 [메이크업 / 웨딩 네일 / 속눈썹 연장]을 위한 우아하고 맑은 느낌의 시안을 생성해 줘. 전체적으로 은은한 진주빛 광채가 나도록 디테일한 질감을 고급스럽게 표현해 줘." },
+            { id: 36, category: 'part6', icon: '🎨', title: '비포/애프터 편집용 템플릿 배경', text: "인스타그램에 뷰티 시술 비포/애프터 사진을 편집해서 올릴 수 있는 세련된 템플릿 배경을 만들어 줘. 왼쪽에는 'Before', 오른쪽에는 'After'라는 우아하고 모던한 영어 폰트가 적혀있고, 사진이 들어갈 공간은 깔끔한 프레임으로 비워진 형태야." },
+            { id: 37, category: 'part6', icon: '🎨', title: '퍼스널 컬러 뷰티 일러스트', text: "[여름 쿨톤 라이트] 고객에게 어울리는 [메이크업 / 네일 컬러] 일러스트를 그려줘. 색감이 돋보이는 수채화풍의 그림으로, 뷰티 샵 벽면에 걸어둘 수 있는 예술적인 느낌으로 만들어 줘." },
+            { id: 38, category: 'part6', icon: '🎨', title: '뷰티 수강 클래스 홍보 포스터', text: "[속눈썹/반영구/네일/메이크업] 수강 창업반 홍보 포스터에 쓸 배경 이미지를 만들어 줘. 태블릿 PC, 세련된 노트, 탁상 거울, 전문가용 [메이크업 브러시/핀셋/니퍼]가 깔끔한 책상 위에 놓여있고, '당신도 전문가가 될 수 있습니다'라는 열정적인 분위기를 연출해 줘." },
+            { id: 39, category: 'part6', icon: '🎨', title: '샵 로고/명함용 추상적 배경', text: "뷰티 샵 로고나 명함 배경으로 쓸 수 있는 추상적이고 우아한 이미지를 생성해 줘. [파운데이션/네일 젤/색소]가 부드럽게 섞이는 듯한 실크 같은 곡선과 [베이지, 인디핑크, 은은한 골드] 컬러가 어우러진 고급스러운 텍스처야." },
+            { id: 40, category: 'part6', icon: '🎨', title: '시니어/혼주 뷰티 레퍼런스', text: "[50대 혼주 메이크업 / 시니어 리프팅 펌 / 우아한 중년 네일]의 레퍼런스로 쓸 뷰티 사진이야. 주름을 우아하게 커버하거나 손의 단점을 보완하여 기품 있고 화사한 인상을 주는 중년 여성의 시술/메이크업 이미지를 생성해 줘." },
+
+            // PART 7 (글로벌 타겟팅 다국어)
+            { id: 41, category: 'part7', icon: '🌍', title: '글로벌 인스타 릴스/피드 본문', text: "한국으로 여행 오는 외국인들을 타겟으로 [K-뷰티 메이크업 / 한국식 속눈썹 펌 / K-네일 아트] 원데이 클래스(또는 시술)를 홍보하는 인스타그램 피드 본문을 영어, 일본어, 중국어(간체)로 각각 작성해 줘. 한국에서 뷰티 시술을 직접 경험해보라는 후킹 멘트와 DM 예약 방법을 필수로 넣어줘." },
+            { id: 42, category: 'part7', icon: '🌍', title: '샵 메뉴판 다국어 번역', text: "우리 샵의 메뉴판 내용이야: [눈썹 반영구 20만 원, 속눈썹 펌 5만 원, 데일리 메이크업 10만 원, 아트 네일 8만 원]. 이 내용을 외국인들이 쉽게 이해할 수 있도록 영어, 일본어, 중국어로 번역해 주고, 각 시술이 어떤 건지 직관적인 1줄 설명도 각 언어로 덧붙여 줘." },
+            { id: 43, category: 'part7', icon: '🌍', title: '외국인 노쇼 방지 예약 규정', text: "외국인 고객이 인스타그램 DM으로 예약을 문의했을 때 복사해서 바로 보낼 수 있는 '예약 안내 및 노쇼 방지 규정(예약금 안내 및 환불 불가 조건)' 템플릿을 정중하고 프로페셔널한 톤으로 영어, 일본어, 중국어로 만들어 줘." },
+            { id: 44, category: 'part7', icon: '🌍', title: '오프라인 샵 필수 CS 회화', text: "외국인 고객이 [뷰티 시술 샵]에 처음 들어왔을 때부터 나갈 때까지 쓸 수 있는 필수 응대 멘트 5가지(환영 인사, 짐 보관, 시술 시작 알림, 통증 여부 확인, 배웅 인사)를 영어, 일본어, 중국어 발음(한국어 표기)과 함께 표로 정리해 줘." },
+            { id: 45, category: 'part7', icon: '🌍', title: '시술 후 주의사항 (Post-care)', text: "[속눈썹 연장 / 반영구 / 젤 네일 / 메이크업] 시술이 끝난 후 외국인 고객에게 종이로 나눠줄 '시술 후 주의사항 및 유지/관리 방법' 4가지를 영어, 일본어, 중국어로 전문적으로 번역해 줘. 직관적으로 이해하기 쉽도록 넘버링을 해 줘." },
+            { id: 46, category: 'part7', icon: '🌍', title: '구글 맵스 리뷰 요청 메시지', text: "뷰티 시술에 만족하고 돌아가는 외국인 고객에게 카톡이나 메신저로 구글 맵스(Google Maps)나 트립어드바이저에 리뷰를 남겨달라고 정중하고 친근하게 요청하는 짧은 메시지를 영어, 일본어, 중국어로 작성해 줘." },
+            { id: 47, category: 'part7', icon: '🌍', title: '오시는 길 (초행길 안내)', text: "[명동역 3번 출구]에서 우리 샵까지 걸어오는 길을 외국인들이 구글맵을 보며 헤매지 않고 찾아올 수 있도록, 주요 랜드마크(편의점, 큰 카페 등)를 포함한 아주 쉬운 길 안내 텍스트를 영어, 일본어, 중국어로 적어 줘." },
+            { id: 48, category: 'part7', icon: '🌍', title: '글로벌 타겟팅 해시태그 추출', text: "외국인들이 한국 여행을 준비할 때 K-뷰티 시술 및 체험 샵을 찾기 위해 인스타그램이나 틱톡에서 검색하는 핫 해시태그 15개를 [영어, 일본어, 중국어]로 각각 추천해 줘. (예: #SeoulBeauty, #KoreanLashes, #韓国ネイル 등)" },
+            { id: 49, category: 'part7', icon: '🌍', title: '안전 시술을 위한 피부/알러지 체크', text: "시술 전 외국인 고객의 피부 상태나 알레르기 여부를 안전하게 확인하기 위한 필수 사전 질문지 3가지(특정 성분 알레르기 유무, 켈로이드 피부 여부, [글루/아크릴/젤] 알레르기 이력)를 영어, 일본어, 중국어로 만들어 줘." },
+            { id: 50, category: 'part7', icon: '🌍', title: 'K-뷰티 트렌드 어필 마케팅 문구', text: "요즘 한국 아이돌이 많이 하는 [가닥 속눈썹 / 자석 네일 / 탕후루 틴트] 트렌드를 설명하면서, '우리 샵에 오면 가장 최신 유행하는 K-뷰티 트렌드를 한국인과 똑같이 경험할 수 있다'는 내용의 홍보 문구를 영어, 일본어, 중국어로 힙하고 세련되게 써 줘." }
+        ];
+
+        let currentFilter = 'all';
+
+        function formatPromptText(text) {
+            return text.replace(/\[(.*?)\]/g, '<span class="highlight-variable">[$1]</span>');
+        }
+
+        function renderPrompts() {
+            const grid = document.getElementById('prompts-grid');
+            grid.innerHTML = '';
+
+            const filteredData = currentFilter === 'all' 
+                ? promptsData 
+                : promptsData.filter(p => p.category === currentFilter);
+
+            if(filteredData.length === 0) {
+                grid.innerHTML = `<p class="col-span-full text-center py-10 text-beauty-textLight">선택된 카테고리의 프롬프트가 없습니다.</p>`;
+                return;
+            }
+
+            filteredData.forEach(prompt => {
+                const formattedText = formatPromptText(prompt.text);
+                const cardHTML = `
+                    <div class="prompt-card bg-beauty-card border border-beauty-border rounded-xl p-6 flex flex-col h-full relative overflow-hidden group">
+                        <div class="absolute top-0 left-0 w-full h-1 bg-beauty-border group-hover:bg-beauty-primary transition-colors"></div>
+                        
+                        <div class="flex items-center gap-3 mb-4 mt-2">
+                            <span class="text-2xl">${prompt.icon}</span>
+                            <h3 class="text-lg font-bold text-beauty-textDark leading-tight">${prompt.title}</h3>
+                        </div>
+                        
+                        <div class="bg-beauty-bg border border-beauty-border/50 rounded-lg p-4 mb-4 flex-grow custom-scroll overflow-y-auto" style="max-height: 200px;">
+                            <p class="text-[15px] leading-relaxed text-beauty-textDark">${formattedText}</p>
+                        </div>
+                        
+                        <button onclick="copyToClipboard('${prompt.text.replace(/'/g, "\\'")}')" 
+                                class="mt-auto w-full py-2.5 bg-[#F6F2EC] hover:bg-beauty-primary hover:text-white text-beauty-textDark font-medium rounded-lg transition-colors flex items-center justify-center gap-2 border border-[#E8E2D9] hover:border-beauty-primary">
+                            <span>📋</span> 프롬프트 복사하기
+                        </button>
+                    </div>
+                `;
+                grid.insertAdjacentHTML('beforeend', cardHTML);
+            });
+        }
+
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                const toast = document.getElementById('toast');
+                toast.classList.remove('hidden');
+                toast.classList.add('toast-enter');
+                
+                setTimeout(() => {
+                    toast.classList.add('hidden');
+                    toast.classList.remove('toast-enter');
+                }, 2500);
+            }).catch(err => {
+                console.error('Failed to copy: ', err);
+                alert("복사에 실패했습니다.");
+            });
+        }
+
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                document.querySelectorAll('.filter-btn').forEach(b => {
+                    b.classList.remove('bg-beauty-primary', 'text-white', 'shadow-md');
+                    b.classList.add('bg-white', 'text-beauty-textDark', 'border-beauty-border');
+                });
+                
+                e.target.classList.remove('bg-white', 'text-beauty-textDark', 'border-beauty-border');
+                e.target.classList.add('bg-beauty-primary', 'text-white', 'shadow-md');
+
+                currentFilter = e.target.getAttribute('data-filter');
+                renderPrompts();
+            });
+        });
+
+        function initChart() {
+            const ctx = document.getElementById('distributionChart').getContext('2d');
+            
+            // 7 Categories: 5, 5, 5, 5, 10, 10, 10
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['일반인 기획', '전문가 기획', '티칭 스크립트', '세일즈 마케팅', 'AI 이미지 분석', '이미지 생성', '외국인 타겟 마케팅'],
+                    datasets: [{
+                        data: [10, 10, 10, 10, 20, 20, 20], // Percentages (Total 50 prompts -> 5=10%, 10=20%)
+                        backgroundColor: [
+                            '#D0B8A8', // Light Neutral
+                            '#C19A6B', // Primary Beige
+                            '#A88458', // Darker Beige
+                            '#8C7A6B', // Taupe
+                            '#E8D8C8', // Very Light Beige (New)
+                            '#6B5C51', // Brown (New)
+                            '#4A4036'  // Dark Espresso
+                        ],
+                        borderWidth: 2,
+                        borderColor: '#FFFFFF',
+                        hoverOffset: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            backgroundColor: '#4A4036',
+                            titleFont: { family: "'Noto Sans KR', sans-serif" },
+                            bodyFont: { family: "'Noto Sans KR', sans-serif" },
+                            padding: 12,
+                            cornerRadius: 8,
+                            callbacks: {
+                                label: function(context) {
+                                    const value = (context.parsed / 100) * 50; // Convert % back to absolute number for tooltip
+                                    return ` ${context.label}: ${value}개 프롬프트 (${context.parsed}%)`;
+                                }
+                            }
+                        }
+                    },
+                    cutout: '70%'
+                }
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            renderPrompts();
+            initChart();
+        });
+
+    </script>
+</body>
+</html>
